@@ -39,32 +39,42 @@ def boxes_iou_bev(boxes_a, boxes_b):
 
     return ans_iou
 
-
 def nms_cuda(boxes, scores, thresh, pre_maxsize=None, post_max_size=None):
-    """Nms function with gpu implementation.
-
-    Args:
-        boxes (torch.Tensor): Input boxes with the shape of [N, 5]
-            ([x1, y1, x2, y2, ry]).
-        scores (torch.Tensor): Scores of boxes with the shape of [N].
-        thresh (int): Threshold.
-        pre_maxsize (int): Max size of boxes before nms. Default: None.
-        post_maxsize (int): Max size of boxes after nms. Default: None.
-
-    Returns:
-        torch.Tensor: Indexes after nms.
     """
-    order = scores.sort(0, descending=True)[1]
-
+    Modified NMS implementation to handle both CPU and GPU cases.
+    Maintains compatibility with original API.
+    """
+    # Sort based on scores
     if pre_maxsize is not None:
+        order = scores.sort(0, descending=True)[1]
         order = order[:pre_maxsize]
+    else:
+        order = torch.sort(scores, descending=True)[1]
     boxes = boxes[order].contiguous()
 
-    keep = torch.zeros(boxes.size(0), dtype=torch.long)
-    num_out = nms_gpu(boxes, keep, thresh, boxes.device.index)
-    keep = order[keep[:num_out].cuda(boxes.device)].contiguous()
+    keep = torch.zeros(boxes.size(0), dtype=torch.long, device=boxes.device)
+    
+    if boxes.is_cuda:
+        # For CUDA tensors, use the original nms_gpu implementation
+        device_idx = boxes.device.index if boxes.device.index is not None else 0
+        num_out = nms_gpu(boxes, keep, thresh, device_idx)
+    else:
+        # For CPU tensors, use torchvision's nms implementation
+        import torchvision
+        keep_cpu = torchvision.ops.nms(
+            boxes[:, :4],  # Use only x1,y1,x2,y2 for NMS
+            scores,
+            thresh
+        )
+        num_out = len(keep_cpu)
+        keep[:num_out] = keep_cpu
+
+    # Handle the output consistently with the original implementation
+    keep = order[keep[:num_out]].contiguous()
+    
     if post_max_size is not None:
         keep = keep[:post_max_size]
+    
     return keep
 
 
