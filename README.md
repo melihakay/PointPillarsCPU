@@ -1,3 +1,7 @@
+# Fork modifications
+
+I have added CPU support for PyTorch version 1.13.0a0+08820cb. Check the commit for the details, it is trivial.
+
 # [PointPillars: Fast Encoders for Object Detection from Point Clouds](https://arxiv.org/abs/1812.05784) 
 
 A Simple PointPillars PyTorch Implenmentation for 3D Lidar(KITTI) Detection. [[Zhihu](https://zhuanlan.zhihu.com/p/521277176)]
